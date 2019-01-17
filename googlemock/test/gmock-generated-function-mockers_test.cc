@@ -43,6 +43,10 @@
 
 #include <map>
 #include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -62,6 +66,15 @@ using testing::Ref;
 using testing::Return;
 using testing::ReturnRef;
 using testing::TypedEq;
+
+template<typename T>
+class TemplatedCopyable {
+ public:
+  TemplatedCopyable() {}
+
+  template <typename U>
+  TemplatedCopyable(const U& other) {}
+};
 
 class FooInterface {
  public:
@@ -91,6 +104,8 @@ class FooInterface {
 
   virtual int TypeWithHole(int (*func)()) = 0;
   virtual int TypeWithComma(const std::map<int, std::string>& a_map) = 0;
+  virtual int TypeWithTemplatedCopyCtor(
+      const TemplatedCopyable<int>& a_vector) = 0;
 
 #if GTEST_OS_WINDOWS
   STDMETHOD_(int, CTNullary)() = 0;
@@ -146,6 +161,8 @@ class MockFoo : public FooInterface {
   MOCK_METHOD1(TypeWithHole, int(int (*)()));  // NOLINT
   MOCK_METHOD1(TypeWithComma,
                int(const std::map<int, std::string>&));  // NOLINT
+  MOCK_METHOD1(TypeWithTemplatedCopyCtor,
+               int(const TemplatedCopyable<int>&));  // NOLINT
 
 #if GTEST_OS_WINDOWS
   MOCK_METHOD0_WITH_CALLTYPE(STDMETHODCALLTYPE, CTNullary, int());
@@ -286,6 +303,11 @@ TEST_F(FunctionMockerTest, MocksReturnTypeWithComma) {
 
   EXPECT_EQ(a_map, mock_foo_.ReturnTypeWithComma());
   EXPECT_EQ(a_map, mock_foo_.ReturnTypeWithComma(42));
+}
+
+TEST_F(FunctionMockerTest, MocksTypeWithTemplatedCopyCtor) {
+  EXPECT_CALL(mock_foo_, TypeWithTemplatedCopyCtor(_)).WillOnce(Return(true));
+  EXPECT_TRUE(foo_->TypeWithTemplatedCopyCtor(TemplatedCopyable<int>()));
 }
 
 #if GTEST_OS_WINDOWS
