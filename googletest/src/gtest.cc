@@ -6707,11 +6707,25 @@ std::string TempDir() {
   }
 #elif GTEST_OS_LINUX_ANDROID
   const char* temp_dir = internal::posix::GetEnv("TEST_TMPDIR");
-  if (temp_dir == nullptr || temp_dir[0] == '\0') {
-    return "/data/local/tmp/";
-  } else {
+  if (temp_dir != nullptr && temp_dir[0] != '\0') {
     return temp_dir;
   }
+  // Starting from Android O, the recommended generic temporary directory is
+  // '/data/local/tmp'. The recommended fallback is the current directory,
+  // which is usually accessible in app context.
+  if (::access("/data/local/tmp", R_OK | W_OK | X_OK) == 0)
+    return "/data/local/tmp/";
+  const char* current_dir = ::getcwd(nullptr, 0);
+  if (current_dir != nullptr &&
+      ::access(current_dir, R_OK | W_OK | X_OK) == 0) {
+    temp_dir = current_dir;
+    temp_dir.push_back(GTEST_PATH_SEP_[0]);
+    return temp_dir;
+  }
+  // Before Android O, /sdcard is usually available.
+  if (::access("/sdcard", R_OK | W_OK | X_OK) == 0) return "/sdcard/";
+  // Generic POSIX fallback.
+  return "/tmp/";
 #elif GTEST_OS_LINUX
   const char* temp_dir = internal::posix::GetEnv("TEST_TMPDIR");
   if (temp_dir == nullptr || temp_dir[0] == '\0') {
