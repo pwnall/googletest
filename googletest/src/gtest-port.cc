@@ -1078,17 +1078,21 @@ class CapturedStream {
  public:
   // The ctor redirects the stream to a temporary file.
   explicit CapturedStream(int fd) : fd_(fd), uncaptured_fd_(dup(fd)) {
-# if GTEST_OS_WINDOWS
-    char temp_dir_path[MAX_PATH + 1] = { '\0' };  // NOLINT
-    char temp_file_path[MAX_PATH + 1] = { '\0' };  // NOLINT
+  std::string temp_dir = ::testing::TempDir();
 
-    ::GetTempPathA(sizeof(temp_dir_path), temp_dir_path);
-    const UINT success = ::GetTempFileNameA(temp_dir_path,
-                                            "gtest_redir",
+  // testing::TempDir() should return a directory without a path separator.
+  // However, this rule was documented fairly recently, so we normalize across
+  // implementations with and without a trailing path separator.
+  if (temp_dir.back() != GTEST_PATH_SEP_[0])
+    temp_dir.push_back(GTEST_PATH_SEP_[0]);
+
+# if GTEST_OS_WINDOWS
+    char temp_file_path[MAX_PATH + 1] = { '\0' };  // NOLINT
+    const UINT success = ::GetTempFileNameA(temp_dir.c_str(), "gtest_redir",
                                             0,  // Generate unique file name.
                                             temp_file_path);
     GTEST_CHECK_(success != 0)
-        << "Unable to create a temporary file in " << temp_dir_path;
+        << "Unable to create a temporary file in " << temp_dir;
     const int captured_fd = creat(temp_file_path, _S_IREAD | _S_IWRITE);
     GTEST_CHECK_(captured_fd != -1) << "Unable to open temporary file "
                                     << temp_file_path;
@@ -1144,11 +1148,9 @@ class CapturedStream {
     // implementations in C++11 and above make assumption behind the const_cast
     // fairly safe.
     const int captured_fd = ::mkstemp(const_cast<char*>(name_template.data()));
-    if (captured_fd == -1) {
-      GTEST_LOG_(WARNING)
-          << "Failed to create tmp file " << name_template
-          << " for test; does the test have access to the /tmp directory?";
-    }
+    GTEST_CHECK_(captured_fd != -1)
+        << "Failed to create tmp file " << name_template
+        << " for test; does the test have write access to the directory?";
     filename_ = std::move(name_template);
 # endif  // GTEST_OS_WINDOWS
     fflush(nullptr);
