@@ -1098,48 +1098,7 @@ class CapturedStream {
                                     << temp_file_path;
     filename_ = temp_file_path;
 # else
-    // There's no guarantee that a test has write access to the current
-    // directory, so we create the temporary file in a temporary directory.
-    std::string name_template;
-
-#  if GTEST_OS_LINUX_ANDROID
-    // Note: Android applications are expected to call the framework's
-    // Context.getExternalStorageDirectory() method through JNI to get
-    // the location of the world-writable SD Card directory. However,
-    // this requires a Context handle, which cannot be retrieved
-    // globally from native code. Doing so also precludes running the
-    // code as part of a regular standalone executable, which doesn't
-    // run in a Dalvik process (e.g. when running it through 'adb shell').
-    //
-    // The location /data/local/tmp is directly accessible from native code.
-    // '/sdcard' and other variants cannot be relied on, as they are not
-    // guaranteed to be mounted, or may have a delay in mounting.
-    name_template = "/data/local/tmp/";
-#  elif GTEST_OS_IOS
-    char user_temp_dir[PATH_MAX + 1];
-
-    // Documented alternative to NSTemporaryDirectory() (for obtaining creating
-    // a temporary directory) at
-    // https://developer.apple.com/library/archive/documentation/Security/Conceptual/SecureCodingGuide/Articles/RaceConditions.html#//apple_ref/doc/uid/TP40002585-SW10
-    //
-    // _CS_DARWIN_USER_TEMP_DIR (as well as _CS_DARWIN_USER_CACHE_DIR) is not
-    // documented in the confstr() man page at
-    // https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/confstr.3.html#//apple_ref/doc/man/3/confstr
-    // but are still available, according to the WebKit patches at
-    // https://trac.webkit.org/changeset/262004/webkit
-    // https://trac.webkit.org/changeset/263705/webkit
-    //
-    // The confstr() implementation falls back to getenv("TMPDIR"). See
-    // https://opensource.apple.com/source/Libc/Libc-1439.100.3/gen/confstr.c.auto.html
-    ::confstr(_CS_DARWIN_USER_TEMP_DIR, user_temp_dir, sizeof(user_temp_dir));
-
-    name_template = user_temp_dir;
-    if (name_template.back() != GTEST_PATH_SEP_[0])
-      name_template.push_back(GTEST_PATH_SEP_[0]);
-#  else
-    name_template = "/tmp/";
-#  endif
-    name_template.append("gtest_captured_stream.XXXXXX");
+    std::string name_template = temp_dir + "gtest_captured_stream.XXXXXX";
 
     // mkstemp() modifies the string bytes in place, and does not go beyond the
     // string's length. This results in well-defined behavior in C++17.
